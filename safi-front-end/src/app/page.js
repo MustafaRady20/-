@@ -21,6 +21,10 @@ import {
   Divider,
   Paper,
   Pagination,
+  ActionIcon,
+  Tooltip,
+  Flex,
+  Space,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
@@ -42,6 +46,7 @@ import {
   IconEdit,
   IconSettings,
   IconUsers,
+  IconUserCircle,
 } from "@tabler/icons-react";
 import { DateTimePicker } from "@mantine/dates";
 
@@ -53,6 +58,16 @@ const getCookie = (name) => {
   return null;
 };
 
+const setCookie = (name, value, days = 7) => {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+};
+
+const deleteCookie = (name) => {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+};
+
 const parseJwt = (token) => {
   try {
     return JSON.parse(atob(token.split(".")[1]));
@@ -61,52 +76,102 @@ const parseJwt = (token) => {
   }
 };
 
-// Header Component with Admin Buttons
-const TrustsHeader = ({ onAddClick, user }) => (
-  <Card shadow="sm" p="lg" withBorder>
-    <Group position="apart" align="center">
-      <Group spacing="md">
+// User Profile Component
+const UserProfile = ({ user, onLogout }) => (
+  <Group spacing="sm">
+    <Group spacing="xs">
+      <IconUserCircle size="1.5rem" color="var(--mantine-color-blue-6)" />
+      <Stack spacing={2}>
+        <Text size="sm" weight={500}>
+          {user?.username || "المستخدم"}
+        </Text>
+        <Badge
+          size="xs"
+          variant="light"
+          color={user?.role === "admin" ? "red" : "blue"}
+        >
+          {user?.role === "admin" ? "مشرف" : "مستخدم"}
+        </Badge>
+      </Stack>
+    </Group>
+
+    <Tooltip label="تسجيل الخروج">
+      <ActionIcon
+        size="lg"
+        variant="light"
+        color="red"
+        onClick={onLogout}
+        sx={(theme) => ({
+          "&:hover": {
+            backgroundColor: theme.colors.red[1],
+            transform: "scale(1.05)",
+          },
+          transition: "all 0.2s ease",
+        })}
+      >
+        <IconLogout size="1.2rem" />
+      </ActionIcon>
+    </Tooltip>
+  </Group>
+);
+
+// Enhanced Header Component
+const TrustsHeader = ({ onAddClick, user, onLogout }) => (
+  <Card shadow="lg" p="xl" withBorder radius="lg">
+    <Flex justify="space-between" align="center" wrap="wrap" gap="md">
+      {/* Logo and Title Section */}
+      <Group spacing="lg">
         <Box
           sx={(theme) => ({
-            width: 50,
-            height: 50,
-            borderRadius: theme.radius.lg,
-            backgroundColor: theme.colors.blue[6],
+            width: 60,
+            height: 60,
+            borderRadius: theme.radius.xl,
+            background: `linear-gradient(135deg, ${theme.colors.blue[6]} 0%, ${theme.colors.blue[8]} 100%)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            boxShadow: theme.shadows.md,
           })}
         >
-          <IconShieldCheck size="1.8rem" color="white" />
+          <IconShieldCheck size="2rem" color="white" />
         </Box>
-        <Title order={1} color="blue.8">
-          إدارة الأمانات
-        </Title>
+        <Stack spacing={5}>
+          <Title order={1} color="blue.8" size="2rem">
+            نظام إدارة الأمانات
+          </Title>
+          <Text color="dimmed" size="sm">
+            إدارة شاملة وآمنة للأمانات والودائع
+          </Text>
+        </Stack>
       </Group>
 
-      <Group spacing="md">
-        {/* Admin-only buttons */}
+      {/* User and Actions Section */}
+      <Flex align="center" gap="lg" wrap="wrap">
+        {/* Admin Controls */}
         {user?.role === "admin" && (
-          <>
+          <Group spacing="sm">
             <Button
               leftIcon={<IconCurrencyDollar size="1rem" />}
-              variant="outline"
+              variant="light"
               color="green"
               onClick={() => (window.location.href = "/prices")}
+              size="sm"
             >
-              تعديل الأسعار
+              الأسعار
             </Button>
             <Button
               leftIcon={<IconUsers size="1rem" />}
-              variant="outline"
+              variant="light"
               color="violet"
               onClick={() => (window.location.href = "/users")}
+              size="sm"
             >
               المستخدمين
             </Button>
-          </>
+          </Group>
         )}
 
+        {/* Add Button */}
         <Button
           leftIcon={<IconPlus size="1rem" />}
           onClick={onAddClick}
@@ -116,93 +181,152 @@ const TrustsHeader = ({ onAddClick, user }) => (
             border: "none",
             "&:hover": {
               background: `linear-gradient(135deg, ${theme.colors.blue[7]} 0%, ${theme.colors.blue[8]} 100%)`,
-              transform: "translateY(-1px)",
+              transform: "translateY(-2px)",
             },
-            transition: "all 0.2s ease",
+            transition: "all 0.3s ease",
+            boxShadow: theme.shadows.md,
           })}
         >
-          إضافة
+          إضافة أمانة جديدة
         </Button>
-      </Group>
-    </Group>
+
+        {/* User Profile */}
+        <UserProfile user={user} onLogout={onLogout} />
+      </Flex>
+    </Flex>
   </Card>
 );
 
-// Search Component
-const SearchBar = ({ searchQuery, onSearchChange }) => (
-  <Group position="right">
-    <TextInput
-      placeholder="بحث بالاسم أو الرقم المسلسل أو الهاتف..."
-      icon={<IconSearch size="1rem" />}
-      value={searchQuery}
-      onChange={(event) => onSearchChange(event.currentTarget.value)}
-      style={{ width: 300 }}
-      size="md"
-    />
-  </Group>
+// Enhanced Search Component
+const SearchBar = ({ searchQuery, onSearchChange, totalResults }) => (
+  <Card shadow="sm" p="md" withBorder radius="md">
+    <Flex justify="space-between" align="center" wrap="wrap" gap="md">
+      <TextInput
+        placeholder="بحث بالاسم أو الرقم المسلسل أو الهاتف..."
+        icon={<IconSearch size="1rem" />}
+        value={searchQuery}
+        onChange={(event) => onSearchChange(event.currentTarget.value)}
+        size="md"
+        sx={{ flexGrow: 1, maxWidth: 400 }}
+        styles={(theme) => ({
+          input: {
+            borderRadius: theme.radius.md,
+            "&:focus": {
+              borderColor: theme.colors.blue[5],
+            },
+          },
+        })}
+      />
+
+      <Group spacing="md">
+        <Text size="sm" color="dimmed" weight={500}>
+          إجمالي الأمانات:{" "}
+          <Text span color="blue" weight={700}>
+            {totalResults}
+          </Text>
+        </Text>
+        {searchQuery && (
+          <Badge variant="light" color="blue" size="sm">
+            نتائج البحث
+          </Badge>
+        )}
+      </Group>
+    </Flex>
+  </Card>
 );
 
-// Results Info Component
-const ResultsInfo = ({ startIndex, endIndex, totalResults }) => (
-  <Text size="sm" color="dimmed">
-    عرض {startIndex + 1} إلى {Math.min(endIndex, totalResults)} من أصل{" "}
-    {totalResults} أمانة
-  </Text>
-);
-
-// Status Badge Component
+// Enhanced Status Badge Component
 const StatusBadge = ({ trust }) => {
   if (trust.exitTime) {
     return (
-      <Badge color="green" variant="filled">
-        تم التسليم
+      <Badge
+        color="green"
+        variant="filled"
+        size="md"
+        sx={(theme) => ({
+          background: `linear-gradient(135deg, ${theme.colors.green[5]} 0%, ${theme.colors.green[7]} 100%)`,
+        })}
+      >
+        ✓ تم التسليم
       </Badge>
     );
   }
   return (
-    <Badge color="blue" variant="filled">
-      محفوظة
+    <Badge
+      color="blue"
+      variant="filled"
+      size="md"
+      sx={(theme) => ({
+        background: `linear-gradient(135deg, ${theme.colors.blue[5]} 0%, ${theme.colors.blue[7]} 100%)`,
+      })}
+    >
+      ⏳ محفوظة
     </Badge>
   );
 };
 
-// Action Buttons Component
+// Enhanced Action Buttons Component
 const ActionButtons = ({ trust, onEdit, onCheckout, onViewReceipt }) => (
   <Group spacing="xs">
-    <Button
-      size="xs"
-      variant="outline"
-      leftIcon={<IconEdit size="0.8rem" />}
-      onClick={() => onEdit(trust)}
-      color="orange"
-    >
-      تعديل
-    </Button>
+    <Tooltip label="تعديل اسم المودع">
+      <ActionIcon
+        size="lg"
+        variant="light"
+        color="orange"
+        onClick={() => onEdit(trust)}
+        sx={(theme) => ({
+          "&:hover": {
+            backgroundColor: theme.colors.orange[1],
+            transform: "scale(1.1)",
+          },
+          transition: "all 0.2s ease",
+        })}
+      >
+        <IconEdit size="1rem" />
+      </ActionIcon>
+    </Tooltip>
 
     {!trust.exitTime ? (
-      <Button
-        size="xs"
-        leftIcon={<IconLogout size="0.8rem" />}
-        onClick={() => onCheckout(trust._id || trust.id)}
-        color="green"
-      >
-        تسليم
-      </Button>
+      <Tooltip label="تسليم الأمانة">
+        <ActionIcon
+          size="lg"
+          variant="light"
+          color="green"
+          onClick={() => onCheckout(trust._id || trust.id)}
+          sx={(theme) => ({
+            "&:hover": {
+              backgroundColor: theme.colors.green[1],
+              transform: "scale(1.1)",
+            },
+            transition: "all 0.2s ease",
+          })}
+        >
+          <IconLogout size="1rem" />
+        </ActionIcon>
+      </Tooltip>
     ) : (
-      <Button
-        size="xs"
-        variant="outline"
-        leftIcon={<IconEye size="0.8rem" />}
-        onClick={() => onViewReceipt(trust)}
-        color="blue"
-      >
-        عرض الفاتورة
-      </Button>
+      <Tooltip label="عرض الفاتورة">
+        <ActionIcon
+          size="lg"
+          variant="light"
+          color="blue"
+          onClick={() => onViewReceipt(trust)}
+          sx={(theme) => ({
+            "&:hover": {
+              backgroundColor: theme.colors.blue[1],
+              transform: "scale(1.1)",
+            },
+            transition: "all 0.2s ease",
+          })}
+        >
+          <IconEye size="1rem" />
+        </ActionIcon>
+      </Tooltip>
     )}
   </Group>
 );
 
-// Table Row Component
+// Enhanced Table Row Component
 const TrustTableRow = ({
   trust,
   formatItemsDisplay,
@@ -212,62 +336,90 @@ const TrustTableRow = ({
   onCheckout,
   onViewReceipt,
 }) => (
-  <tr key={trust._id || trust.id}>
+  <tr
+    key={trust._id || trust.id}
+    style={{
+      transition: "all 0.2s ease",
+    }}
+  >
     <td>
-      <Group spacing="sm">
+      <Group spacing="md">
         <Box
           sx={(theme) => ({
-            width: 32,
-            height: 32,
-            borderRadius: theme.radius.sm,
-            backgroundColor: theme.colors.blue[0],
+            width: 40,
+            height: 40,
+            borderRadius: theme.radius.md,
+            backgroundColor: trust.exitTime
+              ? theme.colors.green[1]
+              : theme.colors.blue[1],
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            border: `2px solid ${
+              trust.exitTime ? theme.colors.green[3] : theme.colors.blue[3]
+            }`,
           })}
         >
-          <IconUser size="1rem" color="var(--mantine-color-blue-6)" />
+          <IconUser
+            size="1.2rem"
+            color={
+              trust.exitTime
+                ? "var(--mantine-color-green-6)"
+                : "var(--mantine-color-blue-6)"
+            }
+          />
         </Box>
-        <div>
-          <Text weight={500}>{trust.visitorName}</Text>
-          <Text size="xs" color="dimmed">
+        <Stack spacing={2}>
+          <Text weight={600} size="sm">
+            {trust.visitorName}
+          </Text>
+          <Text size="xs" color="dimmed" weight={500}>
             #{trust.serialNumber}
           </Text>
-        </div>
+        </Stack>
       </Group>
     </td>
     <td>
-      <Group spacing={4}>
-        <IconPhone size="0.8rem" />
-        <Text size="sm">{trust.phoneNumber}</Text>
+      <Group spacing={6}>
+        <IconPhone size="0.9rem" color="var(--mantine-color-gray-6)" />
+        <Text size="sm" weight={500}>
+          {trust.phoneNumber}
+        </Text>
       </Group>
     </td>
     <td>
-      <Group spacing={4}>
-        <IconPackage size="0.8rem" />
+      <Group spacing={6}>
+        <IconPackage size="0.9rem" color="var(--mantine-color-gray-6)" />
         <Text size="sm">{formatItemsDisplay(trust)}</Text>
       </Group>
     </td>
     <td>
-      <Group spacing={4}>
-        <IconCalendar size="0.8rem" />
+      <Group spacing={6}>
+        <IconCalendar size="0.9rem" color="var(--mantine-color-gray-6)" />
         <Text size="sm">{formatDate(trust.enterTime)}</Text>
       </Group>
     </td>
     <td>
       {trust.exitTime ? (
-        <Group spacing={4}>
-          <IconCalendar size="0.8rem" />
-          <Text size="sm">{formatDate(trust.exitTime)}</Text>
+        <Group spacing={6}>
+          <IconCalendar size="0.9rem" color="var(--mantine-color-green-6)" />
+          <Text size="sm" color="green" weight={500}>
+            {formatDate(trust.exitTime)}
+          </Text>
         </Group>
       ) : (
-        <Text size="sm" color="blue">
-          محفوظة
+        <Text
+          size="sm"
+          color="blue"
+          weight={500}
+          style={{ fontStyle: "italic" }}
+        >
+          لم يتم التسليم
         </Text>
       )}
     </td>
     <td>
-      <Text size="sm">
+      <Text size="sm" weight={500}>
         {trust.daysStayed > 0
           ? `${trust.daysStayed} ${trust.daysStayed === 1 ? "يوم" : "أيام"}`
           : "-"}
@@ -277,7 +429,11 @@ const TrustTableRow = ({
       <StatusBadge trust={trust} />
     </td>
     <td>
-      <Text weight={500}>
+      <Text
+        weight={600}
+        color={trust.totalPrice ? "green" : "orange"}
+        size="sm"
+      >
         {trust.totalPrice ? formatCurrency(trust.totalPrice) : "في الانتظار"}
       </Text>
     </td>
@@ -292,7 +448,7 @@ const TrustTableRow = ({
   </tr>
 );
 
-// Trusts Table Component
+// Enhanced Trusts Table Component
 const TrustsTable = ({
   trusts,
   formatItemsDisplay,
@@ -302,105 +458,42 @@ const TrustsTable = ({
   onCheckout,
   onViewReceipt,
 }) => (
-  <Card shadow="sm" p={0}>
+  <Card shadow="lg" p={0} radius="lg">
     <Table.ScrollContainer minWidth={1000}>
-      <Table striped highlightOnHover>
+      <Table
+        striped
+        highlightOnHover
+        sx={(theme) => ({
+          "& thead tr": {
+            backgroundColor: theme.colors.gray[0],
+          },
+          "& thead th": {
+            borderBottom: `2px solid ${theme.colors.blue[2]}`,
+            fontWeight: 700,
+            color: theme.colors.gray[8],
+            padding: "16px",
+          },
+          "& tbody tr:hover": {
+            backgroundColor: theme.colors.blue[0],
+            transform: "scale(1.002)",
+          },
+          "& tbody td": {
+            padding: "12px 16px",
+            borderBottom: `1px solid ${theme.colors.gray[2]}`,
+          },
+        })}
+      >
         <thead>
-          <tr
-            style={{
-              borderBottom: "2px solid #dee2e6",
-              backgroundColor: "#f8f9fa",
-            }}
-          >
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              المودع
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              معلومات الاتصال
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              الأصناف
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              وقت الإيداع
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              وقت التسليم
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              الأيام
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              الحالة
-            </th>
-            <th
-              style={{
-                borderRight: "1px solid #dee2e6",
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              إجمالي السعر
-            </th>
-            <th
-              style={{
-                padding: "12px 16px",
-                fontWeight: "bold",
-                color: "#495057",
-              }}
-            >
-              الإجراءات
-            </th>
+          <tr>
+            <th>المودع</th>
+            <th>معلومات الاتصال</th>
+            <th>الأصناف</th>
+            <th>وقت الإيداع</th>
+            <th>وقت التسليم</th>
+            <th>الأيام</th>
+            <th>الحالة</th>
+            <th>إجمالي السعر</th>
+            <th>الإجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -422,26 +515,107 @@ const TrustsTable = ({
   </Card>
 );
 
-// Empty State Component
+// Enhanced Empty State Component
 const EmptyState = ({ searchQuery }) => (
-  <Card shadow="sm" p="xl">
+  <Card shadow="md" p="xl" radius="lg">
     <Center>
-      <Stack align="center">
-        <IconShieldCheck size="3rem" color="gray" />
-        <Title order={3} color="dimmed">
-          لم يتم العثور على أمانات
-        </Title>
-        <Text color="dimmed">
-          {searchQuery
-            ? "حاول تعديل معايير البحث."
-            : "لم يتم تسجيل أي أمانات بعد."}
-        </Text>
+      <Stack align="center" spacing="lg">
+        <Box
+          sx={(theme) => ({
+            width: 80,
+            height: 80,
+            borderRadius: theme.radius.xl,
+            backgroundColor: theme.colors.gray[1],
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          })}
+        >
+          <IconShieldCheck size="3rem" color="var(--mantine-color-gray-5)" />
+        </Box>
+        <Stack align="center" spacing="sm">
+          <Title order={3} color="dimmed">
+            {searchQuery
+              ? "لا توجد نتائج مطابقة"
+              : "لم يتم تسجيل أي أمانات بعد"}
+          </Title>
+          <Text color="dimmed" size="sm" align="center">
+            {searchQuery
+              ? "حاول تعديل معايير البحث للعثور على نتائج أفضل"
+              : "ابدأ بإضافة أول أمانة باستخدام الزر أعلاه"}
+          </Text>
+        </Stack>
       </Stack>
     </Center>
   </Card>
 );
 
-// Trust Form Fields Component
+// Simplified Edit Trust Modal (only name editing)
+const EditTrustModal = ({ opened, onClose, form, onSubmit, trustInfo }) => (
+  <Modal
+    opened={opened}
+    onClose={onClose}
+    title={
+      <Group spacing="sm">
+        <IconEdit size="1.2rem" color="var(--mantine-color-orange-6)" />
+        <Text weight={600}>تعديل اسم المودع</Text>
+      </Group>
+    }
+    size="md"
+    centered
+    radius="lg"
+  >
+    <Stack spacing="lg">
+      {trustInfo && (
+        <Paper p="md" withBorder radius="md" bg="gray.0">
+          <Stack spacing="xs">
+            <Text size="sm" color="dimmed">
+              معلومات الأمانة:
+            </Text>
+            <Group spacing="md">
+              <Text size="sm">
+                <strong>الرقم المسلسل:</strong> #{trustInfo.serialNumber}
+              </Text>
+              <Text size="sm">
+                <strong>الهاتف:</strong> {trustInfo.phoneNumber}
+              </Text>
+            </Group>
+          </Stack>
+        </Paper>
+      )}
+
+      <TextInput
+        label="اسم المودع الجديد"
+        placeholder="أدخل اسم المودع الجديد"
+        icon={<IconUser size="1rem" />}
+        {...form.getInputProps("visitorName")}
+        required
+        size="md"
+        styles={(theme) => ({
+          input: {
+            borderRadius: theme.radius.md,
+          },
+        })}
+      />
+
+      <Group position="right" spacing="sm" mt="lg">
+        <Button variant="subtle" onClick={onClose} size="md">
+          إلغاء
+        </Button>
+        <Button
+          leftIcon={<IconEdit size="1rem" />}
+          onClick={() => form.onSubmit(onSubmit)()}
+          color="orange"
+          size="md"
+        >
+          حفظ التغييرات
+        </Button>
+      </Group>
+    </Stack>
+  </Modal>
+);
+
+// Trust Form Fields Component (for add modal)
 const TrustFormFields = ({ form }) => (
   <Stack spacing="md">
     <TextInput
@@ -450,6 +624,7 @@ const TrustFormFields = ({ form }) => (
       icon={<IconUser size="1rem" />}
       {...form.getInputProps("visitorName")}
       required
+      size="md"
     />
 
     <TextInput
@@ -458,6 +633,7 @@ const TrustFormFields = ({ form }) => (
       icon={<IconPhone size="1rem" />}
       {...form.getInputProps("phoneNumber")}
       required
+      size="md"
     />
 
     <Grid>
@@ -468,6 +644,7 @@ const TrustFormFields = ({ form }) => (
           min={0}
           icon={<IconPackage size="1rem" />}
           {...form.getInputProps("numberOfBigItems")}
+          size="md"
         />
       </Grid.Col>
       <Grid.Col span={4}>
@@ -477,6 +654,7 @@ const TrustFormFields = ({ form }) => (
           min={0}
           icon={<IconPackage size="1rem" />}
           {...form.getInputProps("numberOfSmallItems")}
+          size="md"
         />
       </Grid.Col>
       <Grid.Col span={4}>
@@ -486,6 +664,7 @@ const TrustFormFields = ({ form }) => (
           min={0}
           icon={<IconBolt size="1rem" />}
           {...form.getInputProps("numberOfElectricalItems")}
+          size="md"
         />
       </Grid.Col>
     </Grid>
@@ -495,6 +674,7 @@ const TrustFormFields = ({ form }) => (
       icon={<IconCalendar size="1rem" />}
       {...form.getInputProps("enterTime")}
       required
+      size="md"
     />
   </Stack>
 );
@@ -506,20 +686,23 @@ const AddTrustModal = ({ opened, onClose, form, onSubmit }) => (
     onClose={onClose}
     title={
       <Group spacing="sm">
-        <IconPlus size="1.2rem" />
-        <Text weight={500}>إضافة أمانة جديدة</Text>
+        <IconPlus size="1.2rem" color="var(--mantine-color-blue-6)" />
+        <Text weight={600}>إضافة أمانة جديدة</Text>
       </Group>
     }
-    size="md"
+    size="lg"
+    centered
+    radius="lg"
   >
     <TrustFormFields form={form} />
-    <Group position="right" mt="md">
-      <Button variant="subtle" onClick={onClose}>
+    <Group position="right" mt="xl" spacing="sm">
+      <Button variant="subtle" onClick={onClose} size="md">
         إلغاء
       </Button>
       <Button
         leftIcon={<IconPlus size="1rem" />}
         onClick={() => form.onSubmit(onSubmit)()}
+        size="md"
       >
         إضافة أمانة
       </Button>
@@ -527,48 +710,7 @@ const AddTrustModal = ({ opened, onClose, form, onSubmit }) => (
   </Modal>
 );
 
-// Edit Trust Modal Component
-const EditTrustModal = ({ opened, onClose, form, onSubmit }) => (
-  <Modal
-    opened={opened}
-    onClose={onClose}
-    title={
-      <Group spacing="sm">
-        <IconEdit size="1.2rem" />
-        <Text weight={500}>تعديل الأمانة</Text>
-      </Group>
-    }
-    size="md"
-  >
-    <Stack spacing="md">
-      <TrustFormFields form={form} />
-
-      {/* Additional exit time field for edit */}
-      <DateTimePicker
-        label="وقت التسليم (اختياري)"
-        placeholder="اختر وقت التسليم"
-        icon={<IconCalendar size="1rem" />}
-        {...form.getInputProps("exitTime")}
-        clearable
-      />
-    </Stack>
-
-    <Group position="right" mt="md">
-      <Button variant="subtle" onClick={onClose}>
-        إلغاء
-      </Button>
-      <Button
-        leftIcon={<IconEdit size="1rem" />}
-        onClick={() => form.onSubmit(onSubmit)()}
-        color="orange"
-      >
-        حفظ التغييرات
-      </Button>
-    </Group>
-  </Modal>
-);
-
-// Receipt Content Component
+// Receipt Content Component (unchanged)
 const ReceiptContent = ({ receipt, formatDate, formatCurrency }) => (
   <Paper p="lg" withBorder>
     <Stack spacing="md">
@@ -692,6 +834,8 @@ const ReceiptModal = ({
       </Group>
     }
     size="md"
+    centered
+    radius="lg"
   >
     {receipt && (
       <div id="receipt-content" dir="rtl">
@@ -703,15 +847,43 @@ const ReceiptModal = ({
       </div>
     )}
 
-    <Group position="center" mt="lg">
-      <Button leftIcon={<IconPrinter size="1rem" />} onClick={onPrint}>
+    <Group position="center" mt="xl" spacing="sm">
+      <Button
+        leftIcon={<IconPrinter size="1rem" />}
+        onClick={onPrint}
+        size="md"
+      >
         طباعة الفاتورة
       </Button>
-      <Button variant="outline" onClick={onClose}>
+      <Button variant="outline" onClick={onClose} size="md">
         إغلاق
       </Button>
     </Group>
   </Modal>
+);
+
+// Enhanced Pagination Component
+const PaginationComponent = ({ currentPage, totalPages, onPageChange }) => (
+  <Card shadow="sm" p="md" radius="md">
+    <Center>
+      <Pagination
+        total={totalPages}
+        value={currentPage}
+        onChange={onPageChange}
+        size="lg"
+        radius="md"
+        withControls
+        sx={(theme) => ({
+          "& .mantine-Pagination-control": {
+            "&[data-active]": {
+              backgroundColor: theme.colors.blue[6],
+              color: "white",
+            },
+          },
+        })}
+      />
+    </Center>
+  </Card>
 );
 
 // Main TrustsList Component
@@ -723,7 +895,7 @@ const TrustsList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [user, setUser] = useState(null);
-  const itemsPerPage = 50;
+  const itemsPerPage = 20; // Reduced for better UX
 
   // Modal states
   const [opened, { open, close }] = useDisclosure(false);
@@ -758,25 +930,13 @@ const TrustsList = () => {
     },
   });
 
+  // Simplified edit form - only for name
   const editForm = useForm({
     initialValues: {
       visitorName: "",
-      phoneNumber: "",
-      numberOfBigItems: 0,
-      numberOfSmallItems: 0,
-      numberOfElectricalItems: 0,
-      enterTime: new Date(),
-      exitTime: null,
     },
     validate: {
       visitorName: (value) => (!value ? "اسم المودع مطلوب" : null),
-      phoneNumber: (value) => (!value ? "رقم الهاتف مطلوب" : null),
-      numberOfBigItems: (value) =>
-        value < 0 ? "لا يمكن أن يكون سالبًا" : null,
-      numberOfSmallItems: (value) =>
-        value < 0 ? "لا يمكن أن يكون سالبًا" : null,
-      numberOfElectricalItems: (value) =>
-        value < 0 ? "لا يمكن أن يكون سالبًا" : null,
     },
   });
 
@@ -787,6 +947,14 @@ const TrustsList = () => {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
     };
+  };
+
+  // Logout function
+  const handleLogout = () => {
+    deleteCookie("token");
+    deleteCookie("user");
+    setUser(null);
+    window.location.href = "/login";
   };
 
   // Effects
@@ -852,13 +1020,8 @@ const TrustsList = () => {
     try {
       const trustId = editingTrust._id || editingTrust.id;
       const updateData = {
-        ...values,
-        enterTime: values.enterTime.toISOString(),
+        visitorName: values.visitorName, // Only updating the name
       };
-
-      if (values.exitTime) {
-        updateData.exitTime = values.exitTime.toISOString();
-      }
 
       const response = await fetch(`http://localhost:3000/stock/${trustId}`, {
         method: "PATCH",
@@ -918,12 +1081,6 @@ const TrustsList = () => {
     setEditingTrust(trust);
     editForm.setValues({
       visitorName: trust.visitorName,
-      phoneNumber: trust.phoneNumber,
-      numberOfBigItems: trust.numberOfBigItems || 0,
-      numberOfSmallItems: trust.numberOfSmallItems || 0,
-      numberOfElectricalItems: trust.numberOfElectricalItems || 0,
-      enterTime: new Date(trust.enterTime),
-      exitTime: trust.exitTime ? new Date(trust.exitTime) : null,
     });
     openEdit();
   };
@@ -947,7 +1104,7 @@ const TrustsList = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "غير متاح";
     return new Date(dateString).toLocaleString("ar-EG", {
-      month: "long",
+      month: "short",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
@@ -963,7 +1120,6 @@ const TrustsList = () => {
   };
 
   const handlePrintReceipt = () => {
-    // Print logic remains the same as before
     const printStyles = `
     <style>
       @media print {
@@ -1101,7 +1257,12 @@ const TrustsList = () => {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader size="lg" />
+        <Stack align="center" spacing="lg">
+          <Loader size="xl" />
+          <Text size="lg" weight={500} color="blue">
+            جاري تحميل البيانات...
+          </Text>
+        </Stack>
       </Center>
     );
   }
@@ -1112,14 +1273,17 @@ const TrustsList = () => {
       <Container mt="xl">
         <Alert
           icon={<IconAlertCircle size="1rem" />}
-          title="خطأ"
+          title="خطأ في النظام"
           color="red"
           variant="filled"
+          radius="lg"
         >
           {error}
-          <Button variant="outline" color="red" mt="sm" onClick={fetchTrusts}>
-            إعادة المحاولة
-          </Button>
+          <Group mt="md">
+            <Button variant="white" color="red" onClick={fetchTrusts}>
+              إعادة المحاولة
+            </Button>
+          </Group>
         </Alert>
       </Container>
     );
@@ -1129,19 +1293,14 @@ const TrustsList = () => {
     <Container size="xl" py="xl" dir="rtl">
       <Stack spacing="xl">
         {/* Header */}
-        <TrustsHeader onAddClick={open} user={user} />
+        <TrustsHeader onAddClick={open} user={user} onLogout={handleLogout} />
 
         {/* Search */}
-        <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} />
-
-        {/* Results Info */}
-        {filteredTrusts.length > 0 && (
-          <ResultsInfo
-            startIndex={startIndex}
-            endIndex={endIndex}
-            totalResults={filteredTrusts.length}
-          />
-        )}
+        <SearchBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          totalResults={filteredTrusts.length}
+        />
 
         {/* Main Content */}
         {filteredTrusts.length === 0 ? (
@@ -1160,14 +1319,11 @@ const TrustsList = () => {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <Center>
-                <Pagination
-                  total={totalPages}
-                  value={currentPage}
-                  onChange={setCurrentPage}
-                  size="md"
-                />
-              </Center>
+              <PaginationComponent
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
             )}
           </>
         )}
@@ -1186,6 +1342,7 @@ const TrustsList = () => {
         onClose={handleEditModalClose}
         form={editForm}
         onSubmit={handleUpdateTrust}
+        trustInfo={editingTrust}
       />
 
       <ReceiptModal
